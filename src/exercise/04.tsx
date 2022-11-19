@@ -4,12 +4,25 @@
 import * as React from 'react'
 // 🐨 import the useVirtual hook from react-virtual
 // import {useVirtual} from 'react-virtual'
-import {useCombobox} from '../use-combobox'
-import {getItems} from '../workerized-filter-cities'
-import {useAsync, useForceRerender} from '../utils'
+import { UseComboboxGetItemPropsOptions, UseComboboxReturnValue } from 'downshift'
+import { Unwrap } from 'types'
+import { getItems } from '../getWorkerizedFilterCities'
+import { useCombobox } from '../use-combobox'
+import { useAsync, useForceRerender } from '../utils'
+
+type Items = ReturnType<typeof getItems>
+type Item = Unwrap<Items>
+
+type TMenu = Pick<UseComboboxReturnValue<Item>, 'getMenuProps' | 'getItemProps' | 'selectedItem' | 'highlightedIndex'> & {
+  items: Items
+}
+
+type TListItem = UseComboboxGetItemPropsOptions<Item> & Pick<UseComboboxReturnValue<Item>, 'getItemProps'> & {
+  isHighlighted: boolean
+}
 
 // 💰 I made this for you, you'll need it later:
-const getVirtualRowStyles = ({size, start}) => ({
+const getVirtualRowStyles = ({ size, start }: { size: number, start: number }) => ({
   position: 'absolute',
   top: 0,
   left: 0,
@@ -25,7 +38,7 @@ function Menu({
   highlightedIndex,
   selectedItem,
   // 🐨 accept listRef, virtualRows, totalHeight
-}) {
+}: TMenu) {
   return (
     // 🐨 pass the listRef to the `getMenuProps` prop getter function below:
     // 💰  getMenuProps({ref: listRef})
@@ -51,9 +64,9 @@ function Menu({
           index={index}
           isSelected={selectedItem?.id === item.id}
           isHighlighted={highlightedIndex === index}
-          // 🐨 pass a style prop, you can get the inline styles from getVirtualRowStyles()
-          // make sure to pass an object with the size (the height of the row)
-          // and start (where the row starts relative to the scrollTop of its container).
+        // 🐨 pass a style prop, you can get the inline styles from getVirtualRowStyles()
+        // make sure to pass an object with the size (the height of the row)
+        // and start (where the row starts relative to the scrollTop of its container).
         >
           {item.name}
         </ListItem>
@@ -70,7 +83,7 @@ function ListItem({
   isSelected,
   // 🐨 accept the style prop
   ...props
-}) {
+}: TListItem) {
   return (
     <li
       {...getItemProps({
@@ -91,9 +104,9 @@ function App() {
   const forceRerender = useForceRerender()
   const [inputValue, setInputValue] = React.useState('')
 
-  const {data: items, run} = useAsync({data: [], status: 'pending'})
+  const { data: items = [], run } = useAsync<Items>({ data: [], status: 'pending' })
   React.useEffect(() => {
-    run(getItems(inputValue))
+    run(Promise.resolve(getItems(inputValue)))
   }, [inputValue, run])
 
   // 🐨 create a listRef with React.useRef
@@ -122,8 +135,8 @@ function App() {
   } = useCombobox({
     items,
     inputValue,
-    onInputValueChange: ({inputValue: newValue}) => setInputValue(newValue),
-    onSelectedItemChange: ({selectedItem}) =>
+    onInputValueChange: ({ inputValue: newValue }) => setInputValue(newValue ?? ''),
+    onSelectedItemChange: ({ selectedItem }) =>
       alert(
         selectedItem
           ? `You selected ${selectedItem.name}`
@@ -145,7 +158,7 @@ function App() {
       <div>
         <label {...getLabelProps()}>Find a city</label>
         <div {...getComboboxProps()}>
-          <input {...getInputProps({type: 'text'})} />
+          <input {...getInputProps({ type: 'text' })} />
           <button onClick={() => selectItem(null)} aria-label="toggle menu">
             &#10005;
           </button>
@@ -156,10 +169,10 @@ function App() {
           getItemProps={getItemProps}
           highlightedIndex={highlightedIndex}
           selectedItem={selectedItem}
-          // 🐨 pass the following props:
-          // listRef: listRef
-          // virtualRows: rowVirtualizer.virtualItems
-          // totalHeight: rowVirtualizer.totalSize
+        // 🐨 pass the following props:
+        // listRef: listRef
+        // virtualRows: rowVirtualizer.virtualItems
+        // totalHeight: rowVirtualizer.totalSize
         />
       </div>
     </div>

@@ -2,21 +2,31 @@
 // 💯 use recoil (exercise)
 // http://localhost:3000/isolated/exercise/06.extra-4.js
 
+// ! 💣 IMPORTANT: before doing the exercise, delete this:
+// @ts-nocheck
+
 import * as React from 'react'
 import {
-  useForceRerender,
-  useDebouncedState,
-  AppGrid,
-  updateGridState,
-  updateGridCellState,
+  AppGrid, exhaustiveCheck, updateGridCellState, updateGridState, useDebouncedState, useForceRerender
 } from '../utils'
 // 🐨 you're gonna need these:
 // import {RecoilRoot, useRecoilState, useRecoilCallback, atomFamily} from 'recoil'
 
-const AppStateContext = React.createContext()
+type AppState = {
+  dogName: string
+}
+type AppAction =
+  | {
+    type: "TYPED_IN_DOG_INPUT"
+    dogName: string
+  }
 
-const initialGrid = Array.from({length: 100}, () =>
-  Array.from({length: 100}, () => Math.random() * 100),
+type TAppStateContext = readonly [AppState, React.Dispatch<AppAction>]
+
+const AppStateContext = React.createContext<TAppStateContext | null>(null)
+
+const initialGrid = Array.from({ length: 100 }, () =>
+  Array.from({ length: 100 }, () => Math.random() * 100),
 )
 
 // 🐨 create an atomFamily called `cellAtoms` here where the
@@ -41,33 +51,33 @@ const initialGrid = Array.from({length: 100}, () =>
 //   })
 // }
 
-function appReducer(state, action) {
+function appReducer(state: AppState, action: AppAction) {
   switch (action.type) {
     case 'TYPED_IN_DOG_INPUT': {
-      return {...state, dogName: action.dogName}
+      return { ...state, dogName: action.dogName }
     }
     // 💣 we're going to use recoil to update the cell values, so delete this case
     case 'UPDATE_GRID_CELL': {
-      return {...state, grid: updateGridCellState(state.grid, action)}
+      return { ...state, grid: updateGridCellState(state.grid, action) }
     }
     // 💣 the useUpdateGrid hook above will handle this. Delete this case.
     case 'UPDATE_GRID': {
-      return {...state, grid: updateGridState(state.grid)}
+      return { ...state, grid: updateGridState(state.grid) }
     }
     default: {
-      throw new Error(`Unhandled action type: ${action.type}`)
+      exhaustiveCheck(action, 'action.type')
     }
   }
 }
 
-function AppProvider({children}) {
+function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = React.useReducer(appReducer, {
     dogName: '',
     // 💣 we're moving our state outside of React with our atom, delete this:
     grid: initialGrid,
   })
   // 🦉 notice that we don't even need to bother memoizing this value
-  const value = [state, dispatch]
+  const value = [state, dispatch] as const
   return (
     <AppStateContext.Provider value={value}>
       {children}
@@ -83,13 +93,14 @@ function useAppState() {
   return context
 }
 
-function Grid() {
+// 💣 remove memoization. It's not needed!
+const Grid = React.memo(() => {
   // 🐨 we're no longer storing the grid in our app state, so instead you
   // want to get the updateGrid function from useUpdateGrid
   const [, dispatch] = useAppState()
   const [rows, setRows] = useDebouncedState(50)
   const [columns, setColumns] = useDebouncedState(50)
-  const updateGridData = () => dispatch({type: 'UPDATE_GRID'})
+  const updateGridData = () => dispatch({ type: 'UPDATE_GRID' })
   return (
     <AppGrid
       onUpdateGrid={updateGridData}
@@ -100,17 +111,17 @@ function Grid() {
       Cell={Cell}
     />
   )
-}
-// 💣 remove memoization. It's not needed!
-Grid = React.memo(Grid)
+})
 
-function Cell({row, column}) {
+// 🦉 notice we don't need to bother memoizing any of the components!!
+// 💣 remove memoization
+const Cell = React.memo<{ row: number, column: number }>(({ row, column }) => {
   // 🐨 replace these three lines with useRecoilState for the cellAtoms
   // 💰 Here's how you calculate the new value for the cell when it's clicked:
   //    Math.random() * 100
   const [state, dispatch] = useAppState()
   const cell = state.grid[row][column]
-  const handleClick = () => dispatch({type: 'UPDATE_GRID_CELL', row, column})
+  const handleClick = () => dispatch({ type: 'UPDATE_GRID_CELL', row, column })
 
   return (
     <button
@@ -124,18 +135,15 @@ function Cell({row, column}) {
       {Math.floor(cell)}
     </button>
   )
-}
-// 🦉 notice we don't need to bother memoizing any of the components!!
-// 💣 remove memoization
-Cell = React.memo(Cell)
+})
 
 function DogNameInput() {
   const [state, dispatch] = useAppState()
-  const {dogName} = state
+  const { dogName } = state
 
-  function handleChange(event) {
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newDogName = event.target.value
-    dispatch({type: 'TYPED_IN_DOG_INPUT', dogName: newDogName})
+    dispatch({ type: 'TYPED_IN_DOG_INPUT', dogName: newDogName })
   }
 
   return (
