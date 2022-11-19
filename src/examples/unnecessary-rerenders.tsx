@@ -2,11 +2,11 @@
 
 import * as React from 'react'
 
-function CountButton({count, onClick}) {
+function CountButton({ count, onClick }: { count: number, onClick: () => void }) {
   return <button onClick={onClick}>{count}</button>
 }
 
-function NameInput({name, onNameChange}) {
+function NameInput({ name, onNameChange }: { name: string, onNameChange: (value: string) => void }) {
   return (
     <label>
       Name: <input value={name} onChange={e => onNameChange(e.target.value)} />
