@@ -1,4 +1,4 @@
-import {matchSorter} from 'match-sorter'
+import { matchSorter } from 'match-sorter'
 import cities from './us-cities.json'
 
 const allItems = cities.map((city, index) => ({
@@ -8,7 +8,7 @@ const allItems = cities.map((city, index) => ({
 
 // for some reason workerize doesn't like export {getItems}
 // but it's fine with inline exports like this so that's what we're doing.
-export function getItems(filter) {
+export function getItems(filter: string) {
   if (!filter) {
     return allItems
   }
@@ -18,4 +18,4 @@ export function getItems(filter) {
 }
 
 // This is to avoid some issues https://github.com/kentcdodds/react-performance/issues/115
-export default class makeFilterCitiesWorker {}
+export default class makeFilterCitiesWorker { }

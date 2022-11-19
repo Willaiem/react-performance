@@ -1,8 +1,8 @@
 import makeFilterCitiesWorker from 'workerize!./filter-cities'
 
-const {getItems} = makeFilterCitiesWorker()
+const { getItems } = makeFilterCitiesWorker()
 
-export {getItems}
+export { getItems }
 
 /*
 eslint

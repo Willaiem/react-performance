@@ -1,14 +1,14 @@
 import * as React from 'react'
 import useInterval from 'use-interval'
 
-function useSafeDispatch(dispatch) {
+function useSafeDispatch<T>(dispatch: React.Dispatch<T>) {
   const mounted = React.useRef(false)
   React.useLayoutEffect(() => {
     mounted.current = true
-    return () => (mounted.current = false)
+    return () => { mounted.current = false }
   }, [])
   return React.useCallback(
-    (...args) => (mounted.current ? dispatch(...args) : void 0),
+    (...args: Parameters<React.Dispatch<T>>) => (mounted.current ? dispatch(...args) : void 0),
     [dispatch],
   )
 }
@@ -18,34 +18,45 @@ function useSafeDispatch(dispatch) {
 // React.useEffect(() => {
 //   run(fetchPokemon(pokemonName))
 // }, [pokemonName, run])
-const defaultInitialState = {status: 'idle', data: null, error: null}
-function useAsync(initialState) {
+
+type AsyncState<DataType> = {
+  status: 'idle' | 'pending' | 'resolved' | 'rejected'
+  data?: DataType
+  error?: Error
+}
+
+type AsyncReducer<T> = React.Reducer<AsyncState<T>, AsyncState<T>>
+
+function useAsync<T>(initialState?: AsyncState<T>) {
+  const defaultInitialState: AsyncState<T> = { status: 'idle' }
+
   const initialStateRef = React.useRef({
     ...defaultInitialState,
     ...initialState,
   })
-  const [{status, data, error}, setState] = React.useReducer(
-    (s, a) => ({...s, ...a}),
+
+  const [{ status, data, error }, setState] = React.useReducer<AsyncReducer<T>>(
+    (s, a) => ({ ...s, ...a }),
     initialStateRef.current,
   )
 
   const safeSetState = useSafeDispatch(setState)
 
   const run = React.useCallback(
-    promise => {
+    (promise?: Promise<T>) => {
       if (!promise || !promise.then) {
         throw new Error(
           `The argument passed to useAsync().run must be a promise. Maybe a function that's passed isn't returning anything?`,
         )
       }
-      safeSetState({status: 'pending'})
+      safeSetState({ status: 'pending' })
       return promise.then(
         data => {
-          safeSetState({data, status: 'resolved'})
+          safeSetState({ data, status: 'resolved' })
           return data
         },
         error => {
-          safeSetState({status: 'rejected', error})
+          safeSetState({ status: 'rejected', error })
           return error
         },
       )
@@ -53,11 +64,11 @@ function useAsync(initialState) {
     [safeSetState],
   )
 
-  const setData = React.useCallback(data => safeSetState({data}), [
-    safeSetState,
+  const setData = React.useCallback((data: T) => safeSetState({ data, status }), [
+    safeSetState, status
   ])
-  const setError = React.useCallback(error => safeSetState({error}), [
-    safeSetState,
+  const setError = React.useCallback((error: Error) => safeSetState({ error, status }), [
+    safeSetState, status
   ])
   const reset = React.useCallback(() => safeSetState(initialStateRef.current), [
     safeSetState,
@@ -82,9 +93,9 @@ function useAsync(initialState) {
 
 const useForceRerender = () => React.useReducer(x => x + 1, 0)[1]
 
-function debounce(cb, time) {
-  let timeout
-  return (...args) => {
+function debounce<Fn extends (args: any) => void>(cb: Fn, time: number) {
+  let timeout: number
+  return (...args: Parameters<Fn>) => {
     clearTimeout(timeout)
     timeout = setTimeout(cb, time, ...args)
   }
@@ -92,16 +103,31 @@ function debounce(cb, time) {
 
 // this only needs to exist because concurrent mode isn't here yet. When we get
 // that then so much of our hack-perf fixes go away!
-function useDebouncedState(initialState) {
+function useDebouncedState<T>(initialState: T) {
   const [state, setState] = React.useState(initialState)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSetState = React.useCallback(debounce(setState, 200), [])
-  return [state, debouncedSetState]
+  return [state, debouncedSetState] as const
 }
 
-function Interval({onInterval, interval}) {
+function Interval({ onInterval, interval }: { onInterval: () => void, interval: number }) {
   useInterval(onInterval, interval)
   return null
+}
+
+type TCell = React.ElementType<{
+  state?: number
+  row: number
+  column: number
+}>
+
+type TAppGrid = {
+  onUpdateGrid: () => void
+  rows: number
+  handleRowsChange: (value: number) => void
+  columns: number
+  handleColumnsChange: (value: number) => void
+  Cell: TCell
 }
 
 function AppGrid({
@@ -111,7 +137,7 @@ function AppGrid({
   columns,
   handleColumnsChange,
   Cell,
-}) {
+}: TAppGrid) {
   const [keepUpdated, setKeepUpdated] = React.useState(false)
   return (
     <div>
@@ -141,7 +167,7 @@ function AppGrid({
             type="number"
             min={1}
             max={100}
-            onChange={e => handleRowsChange(e.target.value)}
+            onChange={e => handleRowsChange(Number(e.target.value))}
           />
         </div>
         <div>
@@ -152,7 +178,7 @@ function AppGrid({
             type="number"
             min={1}
             max={100}
-            onChange={e => handleColumnsChange(e.target.value)}
+            onChange={e => handleColumnsChange(Number(e.target.value))}
           />
         </div>
       </form>
@@ -164,10 +190,10 @@ function AppGrid({
           overflow: 'scroll',
         }}
       >
-        <div style={{width: columns * 40}}>
-          {Array.from({length: rows}).map((r, row) => (
-            <div key={row} style={{display: 'flex'}}>
-              {Array.from({length: columns}).map((c, column) => (
+        <div style={{ width: columns * 40 }}>
+          {Array.from({ length: rows }).map((r, row) => (
+            <div key={row} style={{ display: 'flex' }}>
+              {Array.from({ length: columns }).map((c, column) => (
                 <Cell key={column} row={row} column={column} />
               ))}
             </div>
@@ -178,13 +204,13 @@ function AppGrid({
   )
 }
 
-function updateGridState(grid) {
+function updateGridState(grid: number[][]) {
   return grid.map(row => {
     return row.map(cell => (Math.random() > 0.7 ? Math.random() * 100 : cell))
   })
 }
 
-function updateGridCellState(grid, {row, column}) {
+function updateGridCellState(grid: number[][], { row, column }: { row: number, column: number }) {
   return grid.map((cells, rI) => {
     if (rI === row) {
       return cells.map((cell, cI) => {
@@ -198,6 +224,10 @@ function updateGridCellState(grid, {row, column}) {
   })
 }
 
+function exhaustiveCheck(param: never, type: string): never {
+  throw new TypeError(`${param} is not a proper ${type}`);
+}
+
 export {
   useAsync,
   useForceRerender,
@@ -206,4 +236,5 @@ export {
   AppGrid,
   updateGridState,
   updateGridCellState,
+  exhaustiveCheck
 }
