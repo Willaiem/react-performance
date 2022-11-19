@@ -1,8 +1,8 @@
+import { alfredTip } from '@kentcdodds/react-workshop-app/test-utils'
+import { render } from '@testing-library/react'
 import * as React from 'react'
-import {alfredTip} from '@kentcdodds/react-workshop-app/test-utils'
-import {render} from '@testing-library/react'
-import reportProfile from '../report-profile'
 import App from '../final/07'
+import reportProfile from '../report-profile'
 // import App from '../exercise/07'
 
 jest.mock('react', () => {
@@ -13,8 +13,10 @@ jest.mock('react', () => {
   }
 })
 
+const mockedReactProfiler = jest.mocked(React.Profiler)
+
 beforeEach(() => {
-  React.Profiler.mockImplementation(({children}) => children)
+  mockedReactProfiler.mockImplementation(({ children }) => <>{children}</>)
 })
 
 test('uses the Profiler correctly', async () => {

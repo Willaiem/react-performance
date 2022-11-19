@@ -1,7 +1,7 @@
-import * as React from 'react'
-import {alfredTip} from '@kentcdodds/react-workshop-app/test-utils'
-import {render, screen} from '@testing-library/react'
+import { alfredTip } from '@kentcdodds/react-workshop-app/test-utils'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { expectIsNotNull } from 'test-utils'
 import App from '../final/06'
 // import App from '../exercise/06'
 
@@ -10,13 +10,15 @@ import App from '../final/06'
 
 test('app continues to work', async () => {
   render(<App />)
-  const dogNameInput = screen.getByRole('textbox', {name: /dog name/i})
+  const dogNameInput = screen.getByRole('textbox', { name: /dog name/i })
   await userEvent.type(dogNameInput, 'Gemma')
   alfredTip(() => {
     expect(screen.getByText('Gemma')).toBeInTheDocument()
   }, `Unable to type a dog name and have it printed out.`)
 
   const firstButton = document.body.querySelector('button.cell')
+  expectIsNotNull(firstButton)
+
   const numberBefore = firstButton.textContent
   await userEvent.click(firstButton)
   let numberAfter = firstButton.textContent

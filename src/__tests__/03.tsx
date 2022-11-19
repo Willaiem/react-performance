@@ -1,12 +1,13 @@
-import * as React from 'react'
 import chalk from 'chalk'
+import * as React from 'react'
 import '../final/03'
 // import '../final/03-extra.1'
 // import '../exercise/03'
 
 // this gets set as soon as we import the file
 // storing it here so it persists between tests
-const memoCalls = [...React.memo.mock.calls]
+const mockedReactMemo = jest.mocked(React.memo)
+const memoCalls = [...mockedReactMemo.mock.calls]
 
 jest.mock('../workerized-filter-cities', () => ({
   getItems: jest.fn(() => {
@@ -22,6 +23,11 @@ jest.mock('react', () => {
   }
 })
 
+function expectIsError(err: unknown): asserts err is Error {
+  expect(err).toBeInstanceOf(Error)
+}
+
+
 test('Components are memoized', async () => {
   const memoizedFunctions = memoCalls.map(call => call[0].name)
   try {
@@ -31,6 +37,7 @@ test('Components are memoized', async () => {
       expect(memoizedFunctions).toContain('Downshift')
     }
   } catch (error) {
+    expectIsError(error)
     //
     //
     //
