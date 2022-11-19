@@ -1,13 +1,30 @@
 // Window large lists with react-virtual
 // http://localhost:3000/isolated/final/04.js
 
+import { UseComboboxGetItemPropsOptions, UseComboboxReturnValue } from 'downshift'
 import * as React from 'react'
-import {useVirtual} from 'react-virtual'
-import {useCombobox} from '../use-combobox'
-import {getItems} from '../workerized-filter-cities'
-import {useAsync, useForceRerender} from '../utils'
+import { useVirtual } from 'react-virtual'
+import { Unwrap } from 'types'
+import { getItems } from '../getWorkerizedFilterCities'
+import { useCombobox } from '../use-combobox'
+import { useAsync, useForceRerender } from '../utils'
 
-const getVirtualRowStyles = ({size, start}) => ({
+type Items = ReturnType<typeof getItems>
+type Item = Unwrap<Items>
+
+type TMenu = Pick<UseComboboxReturnValue<Item>, 'getMenuProps' | 'getItemProps' | 'selectedItem' | 'highlightedIndex'> & {
+  items: Items
+  listRef: React.Ref<HTMLDivElement>
+  virtualRows: { index: number, size: number, start: number }[]
+  totalHeight: number
+}
+
+type TListItem = UseComboboxGetItemPropsOptions<Item> & Pick<UseComboboxReturnValue<Item>, 'getItemProps'> & {
+  isHighlighted: boolean
+}
+
+
+const getVirtualRowStyles = ({ size, start }: { size: number, start: number }): React.CSSProperties => ({
   position: 'absolute',
   top: 0,
   left: 0,
@@ -25,11 +42,11 @@ function Menu({
   listRef,
   virtualRows,
   totalHeight,
-}) {
+}: TMenu) {
   return (
-    <ul {...getMenuProps({ref: listRef})}>
-      <li style={{height: totalHeight}} />
-      {virtualRows.map(({index, size, start}) => {
+    <ul {...getMenuProps({ ref: listRef })}>
+      <li style={{ height: totalHeight }} />
+      {virtualRows.map(({ index, size, start }) => {
         const item = items[index]
         if (!item) return null
         return (
@@ -40,7 +57,7 @@ function Menu({
             index={index}
             isSelected={selectedItem?.id === item.id}
             isHighlighted={highlightedIndex === index}
-            style={getVirtualRowStyles({size, start})}
+            style={getVirtualRowStyles({ size, start })}
           >
             {item.name}
           </ListItem>
@@ -58,7 +75,7 @@ function ListItem({
   isSelected,
   style,
   ...props
-}) {
+}: TListItem) {
   return (
     <li
       {...getItemProps({
@@ -79,12 +96,14 @@ function App() {
   const forceRerender = useForceRerender()
   const [inputValue, setInputValue] = React.useState('')
 
-  const {data: items, run} = useAsync({data: [], status: 'pending'})
+  const { data, run } = useAsync<Items>({ data: [], status: 'pending' })
   React.useEffect(() => {
-    run(getItems(inputValue))
+    run(Promise.resolve(getItems(inputValue)))
   }, [inputValue, run])
 
-  const listRef = React.useRef()
+  const items = data ?? []
+
+  const listRef = React.useRef<HTMLDivElement>(null)
 
   const rowVirtualizer = useVirtual({
     size: items.length,
@@ -103,19 +122,19 @@ function App() {
     getMenuProps,
     selectItem,
   } = useCombobox({
-    items,
+    items: items,
     inputValue,
-    onInputValueChange: ({inputValue: newValue}) => setInputValue(newValue),
-    onSelectedItemChange: ({selectedItem}) =>
+    onInputValueChange: ({ inputValue: newValue }) => setInputValue(newValue ?? ''),
+    onSelectedItemChange: ({ selectedItem }) =>
       alert(
         selectedItem
           ? `You selected ${selectedItem.name}`
           : 'Selection Cleared',
       ),
     itemToString: item => (item ? item.name : ''),
-    scrollIntoView: () => {},
-    onHighlightedIndexChange: ({highlightedIndex}) =>
-      highlightedIndex !== -1 && rowVirtualizer.scrollToIndex(highlightedIndex),
+    scrollIntoView: () => { },
+    onHighlightedIndexChange: ({ highlightedIndex }) =>
+      highlightedIndex !== -1 && rowVirtualizer.scrollToIndex(highlightedIndex ?? 0),
   })
 
   return (
@@ -124,7 +143,7 @@ function App() {
       <div>
         <label {...getLabelProps()}>Find a city</label>
         <div {...getComboboxProps()}>
-          <input {...getInputProps({type: 'text'})} />
+          <input {...getInputProps({ type: 'text' })} />
           <button onClick={() => selectItem(null)} aria-label="toggle menu">
             &#10005;
           </button>

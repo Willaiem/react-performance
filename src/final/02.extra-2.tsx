@@ -1,10 +1,22 @@
 // useMemo for expensive calculations
-// http://localhost:3000/isolated/final/02.js
+// 💯 Put getItems into a Web Worker
+// http://localhost:3000/isolated/final/02.extra-2.js
 
+import { UseComboboxGetItemPropsOptions, UseComboboxReturnValue } from 'downshift'
 import * as React from 'react'
-import {useCombobox} from '../use-combobox'
-import {getItems} from '../filter-cities'
-import {useForceRerender} from '../utils'
+import { Unwrap } from 'types'
+import { getItems } from '../getWorkerizedFilterCities'
+import { useCombobox } from '../use-combobox'
+import { useAsync, useForceRerender } from '../utils'
+
+type Items = ReturnType<typeof getItems>
+type Item = Unwrap<Items>
+
+type TMenu = Pick<UseComboboxReturnValue<Item>, 'getMenuProps' | 'getItemProps' | 'selectedItem' | 'highlightedIndex'> & {
+  items: Items
+}
+
+type TListItem = UseComboboxGetItemPropsOptions<Item> & Pick<UseComboboxReturnValue<Item>, 'getItemProps' | 'selectedItem' | 'highlightedIndex'>
 
 function Menu({
   items,
@@ -12,7 +24,7 @@ function Menu({
   getItemProps,
   highlightedIndex,
   selectedItem,
-}) {
+}: TMenu) {
   return (
     <ul {...getMenuProps()}>
       {items.map((item, index) => (
@@ -38,7 +50,7 @@ function ListItem({
   selectedItem,
   highlightedIndex,
   ...props
-}) {
+}: TListItem) {
   const isSelected = selectedItem?.id === item.id
   const isHighlighted = highlightedIndex === index
   return (
@@ -60,8 +72,11 @@ function App() {
   const forceRerender = useForceRerender()
   const [inputValue, setInputValue] = React.useState('')
 
-  const allItems = React.useMemo(() => getItems(inputValue), [inputValue])
-  const items = allItems.slice(0, 100)
+  const { data: allItems, run } = useAsync<Items>({ data: [], status: 'pending' })
+  React.useEffect(() => {
+    run(Promise.resolve(getItems(inputValue)))
+  }, [inputValue, run])
+  const items = allItems?.slice(0, 100) ?? []
 
   const {
     selectedItem,
@@ -75,8 +90,8 @@ function App() {
   } = useCombobox({
     items,
     inputValue,
-    onInputValueChange: ({inputValue: newValue}) => setInputValue(newValue),
-    onSelectedItemChange: ({selectedItem}) =>
+    onInputValueChange: ({ inputValue: newValue }) => setInputValue(newValue ?? ''),
+    onSelectedItemChange: ({ selectedItem }) =>
       alert(
         selectedItem
           ? `You selected ${selectedItem.name}`
@@ -91,7 +106,7 @@ function App() {
       <div>
         <label {...getLabelProps()}>Find a city</label>
         <div {...getComboboxProps()}>
-          <input {...getInputProps({type: 'text'})} />
+          <input {...getInputProps({ type: 'text' })} />
           <button onClick={() => selectItem(null)} aria-label="toggle menu">
             &#10005;
           </button>

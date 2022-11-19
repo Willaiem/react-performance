@@ -3,36 +3,47 @@
 // http://localhost:3000/isolated/final/06.extra-4.js
 
 import * as React from 'react'
-import {useForceRerender, useDebouncedState, AppGrid} from '../utils'
-import {RecoilRoot, useRecoilState, useRecoilCallback, atomFamily} from 'recoil'
+import { atomFamily, RecoilRoot, useRecoilCallback, useRecoilState } from 'recoil'
+import { AppGrid, useDebouncedState, useForceRerender } from '../utils'
 
-const AppStateContext = React.createContext()
+type AppState = {
+  dogName: string
+}
+type AppAction =
+  | {
+    type: "TYPED_IN_DOG_INPUT"
+    dogName: string
+  }
 
-const initialGrid = Array.from({length: 100}, () =>
-  Array.from({length: 100}, () => Math.random() * 100),
+type TAppStateContext = readonly [AppState, React.Dispatch<AppAction>]
+
+const AppStateContext = React.createContext<TAppStateContext | null>(null)
+
+const initialGrid = Array.from({ length: 100 }, () =>
+  Array.from({ length: 100 }, () => Math.random() * 100),
 )
 
-const cellAtoms = atomFamily({
+const cellAtoms = atomFamily<number, { row: number, column: number }>({
   key: 'cells',
-  default: ({row, column}) => initialGrid[row][column],
+  default: ({ row, column }) => initialGrid[row][column],
 })
 
 function useUpdateGrid() {
-  return useRecoilCallback(({set}) => ({rows, columns}) => {
-    for (let row = 0; row < rows; row++) {
-      for (let column = 0; column < columns; column++) {
+  return useRecoilCallback(({ set }) => ({ rows, columns }) => {
+    for (let row = 0;row < rows;row++) {
+      for (let column = 0;column < columns;column++) {
         if (Math.random() > 0.7) {
-          set(cellAtoms({row, column}), Math.random() * 100)
+          set(cellAtoms({ row, column }), Math.random() * 100)
         }
       }
     }
   })
 }
 
-function appReducer(state, action) {
+function appReducer(state: AppState, action: AppAction) {
   switch (action.type) {
     case 'TYPED_IN_DOG_INPUT': {
-      return {...state, dogName: action.dogName}
+      return { ...state, dogName: action.dogName }
     }
     default: {
       throw new Error(`Unhandled action type: ${action.type}`)
@@ -40,11 +51,11 @@ function appReducer(state, action) {
   }
 }
 
-function AppProvider({children}) {
+function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = React.useReducer(appReducer, {
     dogName: '',
   })
-  const value = [state, dispatch]
+  const value = [state, dispatch] as const
   return (
     <AppStateContext.Provider value={value}>
       {children}
@@ -64,7 +75,7 @@ function Grid() {
   const updateGrid = useUpdateGrid()
   const [rows, setRows] = useDebouncedState(50)
   const [columns, setColumns] = useDebouncedState(50)
-  const updateGridData = () => updateGrid({rows, columns})
+  const updateGridData = () => updateGrid({ rows, columns })
   return (
     <AppGrid
       onUpdateGrid={updateGridData}
@@ -77,8 +88,8 @@ function Grid() {
   )
 }
 
-function Cell({row, column}) {
-  const [cell, setCell] = useRecoilState(cellAtoms({row, column}))
+function Cell({ row, column }: { row: number, column: number }) {
+  const [cell, setCell] = useRecoilState(cellAtoms({ row, column }))
   const handleClick = () => setCell(Math.random() * 100)
   return (
     <button
@@ -96,11 +107,11 @@ function Cell({row, column}) {
 
 function DogNameInput() {
   const [state, dispatch] = useAppState()
-  const {dogName} = state
+  const { dogName } = state
 
-  function handleChange(event) {
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const newDogName = event.target.value
-    dispatch({type: 'TYPED_IN_DOG_INPUT', dogName: newDogName})
+    dispatch({ type: 'TYPED_IN_DOG_INPUT', dogName: newDogName })
   }
 
   return (

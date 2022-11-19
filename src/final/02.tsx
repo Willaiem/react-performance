@@ -1,11 +1,21 @@
-// React.memo for reducing unnecessary re-renders
-// 💯 pass only primitive values
-// http://localhost:3000/isolated/final/03.extra-2.js
+// useMemo for expensive calculations
+// http://localhost:3000/isolated/final/02.js
 
+import { UseComboboxGetItemPropsOptions, UseComboboxReturnValue } from 'downshift'
 import * as React from 'react'
-import {useCombobox} from '../use-combobox'
-import {getItems} from '../workerized-filter-cities'
-import {useAsync, useForceRerender} from '../utils'
+import { Unwrap } from 'types'
+import { getItems } from '../filter-cities'
+import { useCombobox } from '../use-combobox'
+import { useForceRerender } from '../utils'
+
+type Items = ReturnType<typeof getItems>
+type Item = Unwrap<Items>
+
+type TMenu = Pick<UseComboboxReturnValue<Item>, 'getMenuProps' | 'getItemProps' | 'selectedItem' | 'highlightedIndex'> & {
+  items: Items
+}
+
+type TListItem = UseComboboxGetItemPropsOptions<Item> & Pick<UseComboboxReturnValue<Item>, 'getItemProps' | 'selectedItem' | 'highlightedIndex'>
 
 function Menu({
   items,
@@ -13,7 +23,7 @@ function Menu({
   getItemProps,
   highlightedIndex,
   selectedItem,
-}) {
+}: TMenu) {
   return (
     <ul {...getMenuProps()}>
       {items.map((item, index) => (
@@ -22,8 +32,8 @@ function Menu({
           getItemProps={getItemProps}
           item={item}
           index={index}
-          isSelected={selectedItem?.id === item.id}
-          isHighlighted={highlightedIndex === index}
+          selectedItem={selectedItem}
+          highlightedIndex={highlightedIndex}
         >
           {item.name}
         </ListItem>
@@ -31,40 +41,38 @@ function Menu({
     </ul>
   )
 }
-Menu = React.memo(Menu)
+
 
 function ListItem({
   getItemProps,
   item,
   index,
-  isHighlighted,
-  isSelected,
+  selectedItem,
+  highlightedIndex,
   ...props
-}) {
+}: TListItem) {
+  const isSelected = selectedItem?.id === item.id
+  const isHighlighted = highlightedIndex === index
   return (
     <li
       {...getItemProps({
         index,
         item,
         style: {
-          backgroundColor: isHighlighted ? 'lightgray' : 'inherit',
           fontWeight: isSelected ? 'bold' : 'normal',
+          backgroundColor: isHighlighted ? 'lightgray' : 'inherit',
         },
         ...props,
       })}
     />
   )
 }
-ListItem = React.memo(ListItem)
 
 function App() {
   const forceRerender = useForceRerender()
   const [inputValue, setInputValue] = React.useState('')
 
-  const {data: allItems, run} = useAsync({data: [], status: 'pending'})
-  React.useEffect(() => {
-    run(getItems(inputValue))
-  }, [inputValue, run])
+  const allItems = React.useMemo(() => getItems(inputValue), [inputValue])
   const items = allItems.slice(0, 100)
 
   const {
@@ -79,8 +87,8 @@ function App() {
   } = useCombobox({
     items,
     inputValue,
-    onInputValueChange: ({inputValue: newValue}) => setInputValue(newValue),
-    onSelectedItemChange: ({selectedItem}) =>
+    onInputValueChange: ({ inputValue: newValue }) => setInputValue(newValue ?? ''),
+    onSelectedItemChange: ({ selectedItem }) =>
       alert(
         selectedItem
           ? `You selected ${selectedItem.name}`
@@ -95,7 +103,7 @@ function App() {
       <div>
         <label {...getLabelProps()}>Find a city</label>
         <div {...getComboboxProps()}>
-          <input {...getInputProps({type: 'text'})} />
+          <input {...getInputProps({ type: 'text' })} />
           <button onClick={() => selectItem(null)} aria-label="toggle menu">
             &#10005;
           </button>
@@ -113,8 +121,3 @@ function App() {
 }
 
 export default App
-
-/*
-eslint
-  no-func-assign: 0,
-*/
